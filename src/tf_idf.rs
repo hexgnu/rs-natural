@@ -56,24 +56,29 @@ impl TfIdf {
 		self.doc_count += 1;
 	}
 
+    pub fn tfd(&self, term: &str, doc: &str) -> f32 {
+        1.0 + (doc.matches(term).count() as f32).ln()
+    }
+
 	//Calculate term frequency for one term
-	fn tf(&self, term: &str) -> f32 {
+	pub fn tf(&self, term: &str) -> f32 {
 		match self.term_freqs.get(term) {
-			Some(freq) => *freq as f32 / self.word_count as f32,
+            Some(freq) => *freq as f32,
+//			Some(freq) => *freq as f32 / self.word_count as f32,
 			None => 0.0f32
 		}
 	}
 
 	//Calculate inverse document frequency for one term
-	fn idf(&self, term: &str) -> f32 {
+	pub fn idf(&self, term: &str) -> f32 {
 		let doc_freq = match self.doc_freqs.get(term) {
 			Some(freq) => *freq as f32,
 			None => 0.0f32
 		};
 
-		let ratio = self.doc_count as f32 / 1.0f32 + doc_freq;
+		let ratio = (1.0+self.doc_count as f32) / (2.0f32 + doc_freq);
 
-		ratio.ln()
+		ratio.ln() + 1.0
 	}
 
 	//Calculate tf-idf for one term
@@ -84,6 +89,25 @@ impl TfIdf {
 		tf * idf
 	}
 
+    pub fn vectorize(&self, terms: &str) -> HashMap<String, f32> {
+        let tokens = get_tokenized_and_stemmed(terms);
+
+        let mut csr = HashMap::new();
+
+        let mut norm = 0.0;
+
+        for token in tokens.iter() {
+            csr.entry(token.to_string()).or_insert({
+                let tfidf = self.idf(&token) * self.tfd(&token, &terms);
+                norm += tfidf;
+                tfidf
+            });
+        }
+
+        csr.iter().map(|(k,v)| {
+            (k.to_string(), v / norm)
+        }).collect::<HashMap<String,f32>>()
+    }
 	//Get tf-idf of a string of one or more terms
 	pub fn get(&self, terms: &str) -> f32 {
 		let tokens = get_tokenized_and_stemmed(terms);
