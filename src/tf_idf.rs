@@ -56,21 +56,20 @@ impl TfIdf {
 		self.doc_count += 1;
 	}
 
-    pub fn tfd(&self, term: &str, doc: &str) -> f32 {
+    fn tfd(&self, term: &str, doc: &str) -> f32 {
         1.0 + (doc.matches(term).count() as f32).ln()
     }
 
 	//Calculate term frequency for one term
-	pub fn tf(&self, term: &str) -> f32 {
+	fn tf(&self, term: &str) -> f32 {
 		match self.term_freqs.get(term) {
-            Some(freq) => *freq as f32,
-//			Some(freq) => *freq as f32 / self.word_count as f32,
+			Some(freq) => *freq as f32 / self.word_count as f32,
 			None => 0.0f32
 		}
 	}
 
 	//Calculate inverse document frequency for one term
-	pub fn idf(&self, term: &str) -> f32 {
+	fn idf(&self, term: &str) -> f32 {
 		let doc_freq = match self.doc_freqs.get(term) {
 			Some(freq) => *freq as f32,
 			None => 0.0f32
