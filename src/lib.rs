@@ -2,6 +2,7 @@
 extern crate serde;
 
 extern crate rust_stemmers;
+extern crate priority_queue;
 
 pub mod distance;
 pub mod ngram;

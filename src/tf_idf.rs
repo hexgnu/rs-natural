@@ -2,6 +2,9 @@ use std::collections::{HashMap, HashSet};
 use tokenize::tokenize;
 use std::borrow::Cow;
 use rust_stemmers::{Algorithm, Stemmer};
+use priority_queue::PriorityQueue;
+use std::cmp;
+
 
 #[cfg(feature = "serde_support")]
 use serde::{Serialize, Deserialize};
@@ -19,7 +22,7 @@ pub struct TfIdf {
 	doc_count: usize,
 
 	//total count of words inserted
-	word_count: usize
+	word_count: usize,
 }
 
 impl TfIdf {
@@ -55,6 +58,29 @@ impl TfIdf {
 
 		self.doc_count += 1;
 	}
+
+    pub fn trim(&mut self, limit: usize) -> TfIdf {
+        let mut pq = PriorityQueue::<String, usize>::new();
+
+        for (k,v) in self.term_freqs.iter() {
+            pq.push(k.to_string(), *v);
+        }
+
+        let mut doc_freqs = HashMap::new();
+        let mut term_freqs = HashMap::new();
+
+        for (k,v) in pq.into_sorted_iter().take(limit) {
+            doc_freqs.insert(k.to_string(), *self.doc_freqs.get(&k.to_string()).unwrap());
+            term_freqs.insert(k.to_string(), *self.term_freqs.get(&k.to_string()).unwrap());
+        }
+
+        TfIdf {
+            doc_count: self.doc_count,
+            word_count: cmp::min(limit, self.word_count),
+            term_freqs: term_freqs,
+            doc_freqs: doc_freqs
+        }
+    }
 
     fn tfd(&self, term: &str, doc: &str) -> f32 {
         1.0 + (doc.matches(term).count() as f32).ln()
@@ -98,14 +124,16 @@ impl TfIdf {
         for token in tokens.iter() {
             csr.entry(token.to_string()).or_insert({
                 let tfidf = self.idf(&token) * self.tfd(&token, &terms);
-                norm += tfidf;
+                norm += tfidf * tfidf;
                 tfidf
             });
         }
 
+        norm = norm.sqrt();
+
         csr.iter().map(|(k,v)| {
             (k.to_string(), v / norm)
-        }).collect::<HashMap<String,f32>>()
+        }).filter(|(k,v)| v > &0.0).collect::<HashMap<String,f32>>()
     }
 	//Get tf-idf of a string of one or more terms
 	pub fn get(&self, terms: &str) -> f32 {
